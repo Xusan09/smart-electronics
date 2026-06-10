@@ -9,20 +9,21 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
+// Serve frontend build files
+const frontendBuild = path.join(__dirname, '../frontend/dist');
+if (fs.existsSync(frontendBuild)) {
+  app.use(express.static(frontendBuild));
+}
+
 const getProducts = () => {
   const data = fs.readFileSync(path.join(__dirname, 'data/products.json'), 'utf-8');
   return JSON.parse(data);
 };
 
-// GET all products with optional search & category filter
 app.get('/api/products', (req, res) => {
   const { search, category } = req.query;
   let products = getProducts();
-
-  if (category) {
-    products = products.filter(p => p.category === category);
-  }
-
+  if (category) products = products.filter(p => p.category === category);
   if (search) {
     const q = search.toLowerCase();
     products = products.filter(p =>
@@ -31,11 +32,9 @@ app.get('/api/products', (req, res) => {
       p.description.toLowerCase().includes(q)
     );
   }
-
   res.json(products);
 });
 
-// GET single product by ID
 app.get('/api/products/:id', (req, res) => {
   const products = getProducts();
   const product = products.find(p => p.id === parseInt(req.params.id));
@@ -43,11 +42,20 @@ app.get('/api/products/:id', (req, res) => {
   res.json(product);
 });
 
-// GET all categories
 app.get('/api/categories', (req, res) => {
   const products = getProducts();
   const categories = [...new Set(products.map(p => p.category))];
   res.json(categories);
+});
+
+// All other routes serve frontend
+app.get('*', (req, res) => {
+  const indexPath = path.join(__dirname, '../frontend/dist/index.html');
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.json({ message: 'Smart Electronics API is running!' });
+  }
 });
 
 app.listen(PORT, () => {
